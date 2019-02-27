@@ -15,14 +15,14 @@ var bot = new Discord.Client({
 
 var jennyID = '548564374562799636';
 
-/* var serverID = '548679023614492685';
-var welcomeChannelID = '548679023614492693'; */
-var serverID = '339135606502457344'; 			
+var serverID = '548679023614492685';
+var welcomeChannelID = '548679023614492693';
+/* var serverID = '339135606502457344'; 			
 var testChannelID = '549428035611394050';  		//jenny-test
-var welcomeChannelID = '470378095103311872';	//real channel
+var welcomeChannelID = '470378095103311872';	//real channel */
 
 //roleIDs
-/* var adminID = "549311659274010624";
+var adminID = "549311659274010624";
 var richmondID = '548701435047444485';
 var armadaID = '548720881241948161';
 var newHavenID = '548720934484180992';
@@ -30,10 +30,10 @@ var newBaltimoreID = '548721654956556319';
 var memphisID = '548721018471055370';
 var mysticID = '548726406318653440';
 var valorID = '548726370113683456';
-var instinctID = '548726323984728104'; */
+var instinctID = '548726323984728104';
 
 //roleIDs
-var adminID = "343213676767215626";
+/* var adminID = "343213676767215626";
 var richmondID = '408038839601332224';
 var armadaID = '408038356556054548';
 var newHavenID = '408038898636423168';
@@ -41,7 +41,7 @@ var newBaltimoreID = '408038954634444818';
 var memphisID = '408038488504795158';
 var mysticID = '343212056423432194';
 var valorID = '343212127294849024';
-var instinctID = '343211717570068481';
+var instinctID = '343211717570068481'; */
 	
 bot.on('ready', function (evt) {
     logger.info('Connected');
