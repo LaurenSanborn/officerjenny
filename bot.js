@@ -58,6 +58,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 		
 		logger.info("incoming message:" + message);
 		logger.info("message id:" + evt.d.id);
+		logger.info("userID:" + userID);
 		
 		// Our bot first needs to know if it is being asked to execute a command
 		// It will listen for messages that will start with `!`
@@ -72,22 +73,27 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 				// resend welcome prompt
 				case 'welcome':
 					sendWelcome(channelID, memberTag);
+					bot.deleteMessage({
+						channelID: channelID, 
+						messageID: evt.d.id
+					});
 					break;
 				// display rules
 				case "rules":
 					sendRules(channelID, memberTag);
+					bot.deleteMessage({
+						channelID: channelID, 
+						messageID: evt.d.id
+					});
 					break;
 				case "tutorial":
 					// This is a Meowth command, but we still want to trigger the next question if they complete this step
 					setTimeout(function() {
-						sendRules(channelID, "<@!" + userId + ">");
+						sendRules(channelID, "<@!" + userID + ">");
 					}, 50000);
 					break;
 			}
-			bot.deleteMessage({
-				channelID: channelID, 
-				messageID: evt.d.id
-			});
+
 		//Check for screen shot (assumes an attachment is the screen shot)
 		} else if (evt.d.attachments.length == 1) {
 			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" + adminID + "> will come by sometime soon to review it. Thanks!");
@@ -278,7 +284,7 @@ function sendRules(channelID, memberTag) {
 		//send rules and !gotcha instructions
 		bot.sendMessage({
 			to: channelID,
-			message: "OK, " + memberTag + "you are almost ready to go! Just look over these rules:\n\n"
+			message: "OK, " + memberTag + ", you are almost ready to go! Just look over these rules:\n\n"
 				+ "**COMMUNITY RULES**\n"
 				+ "- Please treat your fellow Trainers with dignity and respect. Rudeness and mean-spirited comments will not be tolerated here. Our community is all about having fun and helping each other out. This is extremely important since we are involved with planning real-world meetups. We want everyone to feel comfortable and safe both online and out in the field.\n\n"
 				+ "- As we are a group revolving around an all-ages video game, coarse language and inappropriate topics are not allowed here. Whether or not a topic is appropriate is up to individual admin discretion.\n\n"
