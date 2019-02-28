@@ -13,24 +13,9 @@ var bot = new Discord.Client({
    autorun: true
 });
 
-var jennyID = '548564374562799636';
-
-/* var serverID = '548679023614492685';
-var welcomeChannelID = '548679023614492693'; */
 var serverID = '339135606502457344'; 			
 var testChannelID = '549428035611394050';  		//jenny-test
 var welcomeChannelID = '470378095103311872';	//real channel
-
-//roleIDs
-/* var adminID = "549311659274010624";
-var richmondID = '548701435047444485';
-var armadaID = '548720881241948161';
-var newHavenID = '548720934484180992';
-var newBaltimoreID = '548721654956556319';
-var memphisID = '548721018471055370';
-var mysticID = '548726406318653440';
-var valorID = '548726370113683456';
-var instinctID = '548726323984728104'; */
 
 //roleIDs
 var adminID = "343213676767215626";
@@ -42,6 +27,9 @@ var memphisID = '408038488504795158';
 var mysticID = '343212056423432194';
 var valorID = '343212127294849024';
 var instinctID = '343211717570068481';
+
+var mods = ["256626217711697921", "173958118001213441"];
+
 	
 bot.on('ready', function (evt) {
     logger.info('Connected');
@@ -54,11 +42,10 @@ bot.on('guildMemberAdd', function(member) {
 });
 
 bot.on('messageCreate', function (user, userID, channelID, message, evt) {
-	if (userID != jennyID && (channelID == welcomeChannelID || channelID == testChannelID) ) {
+	if (userID != bot.id && (channelID == welcomeChannelID || channelID == testChannelID) ) {
 		
-		logger.info("incoming message:" + message);
-		logger.info("message id:" + evt.d.id);
-		logger.info("userID:" + userID);
+		logger.info("user: " + user);
+		logger.info("message: " + message);
 		
 		// Our bot first needs to know if it is being asked to execute a command
 		// It will listen for messages that will start with `!`
@@ -66,9 +53,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			var args = message.substring(1).split(' ');
 			var cmd = args[0];
 			var memberTag = args[1];
-			logger.info(args);
-       
-			args = args.splice(1);
+			logger.info("args: " + args);
 			switch(cmd) {
 				// resend welcome prompt
 				case 'welcome':
@@ -96,17 +81,20 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 
 		//Check for screen shot (assumes an attachment is the screen shot)
 		} else if (evt.d.attachments.length == 1) {
-			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" + adminID + "> will come by sometime soon to review it. Thanks!");
+			//Foward pic via DM to all mods
+			for (var i=0; i < mods.length; i++) {
+				logger.info("Sending DM to: " + mods[i] + ", url:" + evt.d.attachments[0].proxy_url);
+				bot.sendMessage({
+					to: mods[i],
+					message: " Verification needed for user " + user + ".\n" 
+						+ evt.d.attachments[0].proxy_url 
+				});
+			}
+			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" 
+				+ adminID + "> will come by sometime soon to review it. Thanks!");
 			setTimeout(function() {
 				typeMessage(channelID, "While we wait, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?");
 			}, 10000);
-			logger.info(evt.d.attachments[0].url);
-			logger.info(evt.d.attachments[0].filename);
-			bot.uploadFile({
-				to: "256626217711697921",  //to me!
-				file: evt.d.attachments[0].url,  //?
-				message: user + " - welcome message attachment"
-			});
 		//Look for team keywords
 		} else if (checkTeams(channelID, userID, message)) {
 			setTimeout(function() {
@@ -294,6 +282,7 @@ function sendRules(channelID, memberTag) {
 		});
 	}
 };
+
 
 function typeMessage(channelID, message) {
 		bot.simulateTyping(channelID);
