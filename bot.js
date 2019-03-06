@@ -19,6 +19,7 @@ var welcomeChannelID = '470378095103311872';	//real channel
 
 //roleIDs
 var adminID = "343213676767215626";
+var newUserID = "346093568093585410";
 var richmondID = '408038839601332224';
 var armadaID = '408038356556054548';
 var newHavenID = '408038898636423168';
@@ -35,17 +36,30 @@ bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
     logger.info(bot.username + ' - (' + bot.id + ')');
+	
+	bot.setPresence({
+		game: {name:"Welcome Bot v1.0"}
+	});
 });
 
-bot.on('guildMemberAdd', function(member) { 
+bot.on('disconnect', function(errMsg, code) { 
+	logger.info("Disconnected! errMsg:" + errMsg + ", code:" + code);
+	bot.connect();
+});
+
+bot.on('guildMemberAdd', function(member) {
+	//TODO: Add new member to new user role
+	console.log(member);
+	
+	//Send Welcome Prompt to the new member
 	sendWelcome(welcomeChannelID, "<@!" + member.id + ">");
 });
 
 bot.on('messageCreate', function (user, userID, channelID, message, evt) {
-	if (userID != bot.id && (channelID == welcomeChannelID || channelID == testChannelID) ) {
+	if (!bot.users[userID].bot && (channelID == welcomeChannelID || channelID == testChannelID) ) {
 		
-		logger.info("user: " + user);
-		logger.info("message: " + message);
+		logger.info("New Message. user: " + user 
+			+ ", message: " + message);
 		
 		// Our bot first needs to know if it is being asked to execute a command
 		// It will listen for messages that will start with `!`
@@ -53,58 +67,72 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			var args = message.substring(1).split(' ');
 			var cmd = args[0];
 			var memberTag = args[1];
-			logger.info("args: " + args);
+			logger.info("Command detected. args: " + args);
 			switch(cmd) {
-				// resend welcome prompt
 				case 'welcome':
+					//Send Welcome Prompt to the user mentioned
+					//TODO: Verify admin privileges
 					sendWelcome(channelID, memberTag);
+					//Delete command
 					bot.deleteMessage({
 						channelID: channelID, 
 						messageID: evt.d.id
 					});
 					break;
-				// display rules
 				case "rules":
+					//Send Rules Prompt to the user mentioned
+					//TODO: Verify admin privileges
 					sendRules(channelID, memberTag);
+					//Delete command
 					bot.deleteMessage({
 						channelID: channelID, 
 						messageID: evt.d.id
 					});
 					break;
-				case "tutorial":
-					// This is a Meowth command, but we still want to trigger the next question if they complete this step
+				case "tutorial":	// This is a Meowth command, but we want it to do more.
+					//Send Rules Prompt to user after a 5 minute pause.
 					setTimeout(function() {
 						sendRules(channelID, "<@!" + userID + ">");
-					}, 50000);
+					}, 240000);
+					break;
+				case "gotcha":	// This is a custom Dyno command, but we want it to do more
+					//Delete all messages that mention the user
+					deleteUserMentions(channelID, userID);
+					deleteUserMessages(channelID, userID);
 					break;
 			}
 
 		//Check for screen shot (assumes an attachment is the screen shot)
 		} else if (evt.d.attachments.length == 1) {
-			//Foward pic via DM to all mods
-			for (var i=0; i < mods.length; i++) {
-				logger.info("Sending DM to: " + mods[i] + ", url:" + evt.d.attachments[0].proxy_url);
-				bot.sendMessage({
-					to: mods[i],
-					message: " Verification needed for user " + user + ".\n" 
-						+ evt.d.attachments[0].proxy_url 
-				});
-			}
 			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" 
-				+ adminID + "> will come by sometime soon to review it. Thanks!");
+				+ adminID + "> will come by sometime soon to review it. Thanks, <@!" + userID + ">!");
 			setTimeout(function() {
-				typeMessage(channelID, "While we wait, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?");
-			}, 10000);
+				//Send Team prompt to user
+				typeMessage(channelID, "While we wait, <@!" + userID + ">, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?");
+			}, 5000);
+			setTimeout(function() {
+				//Forward screen shot via DM to all mods
+				for (var i=0; i < mods.length; i++) {
+					logger.info("Sending verification DM to: " + mods[i] + ", url:" + evt.d.attachments[0].proxy_url);
+					bot.sendMessage({
+						to: mods[i],
+						message: " Verification needed for user " + user + ".\n" 
+							+ evt.d.attachments[0].proxy_url 
+					});
+				}
+			}, 300000);
 		//Look for team keywords
 		} else if (checkTeams(channelID, userID, message)) {
 			setTimeout(function() {
+				//Send Areas prompt to user
 				typeMessage(channelID, "Next, <@!" + userID + ">, tell me: where do you play \(**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**\)?");
-			}, 10000);
+			}, 5000);
 		//Look for area keywords
 		} else if (checkAreas(channelID, userID, message)) {
 			setTimeout(function() {
-				typeMessage(channelID, "<@!" + userID + ">, FYI this server uses Meowth bot to coordinate raids. It’s a little difficult to get used to, but very handy once you get the hang of it. There is an (optional) in-depth Meowth tutorial. To try it out, type: **!tutorial**");
-			}, 10000);
+				//Send Tutorial prompt to user
+				typeMessage(channelID, "<@!" + userID + ">, this server uses Meowth bot to coordinate raids. It’s a little difficult to get used to, but very handy once you get the hang of it. There is an (optional) in-depth Meowth tutorial. To try it out, type: **!tutorial**");
+			}, 5000);
 		}
 	}
 	 
@@ -112,6 +140,8 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 
 function sendWelcome(channelID, memberTag) {
 	var welcomeMessage;
+	
+	logger.info('Sending welcome message to ' + memberTag );
 	
 	if (memberTag == undefined) {
 		welcomeMessage = "Hold it right there! I need to check your trainer information before I can let you through!\n\nPlease take a screen shot of your player profile in the game and post it here.\n\nHere's an example:";
@@ -128,69 +158,64 @@ function sendWelcome(channelID, memberTag) {
 };
 
 function checkTeams(channelID, userID, message) {
-	var team = false;
+	var team = true;
 		
-	//Add to Mystic role
 	if (message.search(/mystic/i) != -1) {
+		logger.info('Assigning mystic role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: mysticID
 		});
 		bot.removeFromRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: valorID
 		});
 		bot.removeFromRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: instinctID
 		});
 		typeMessage(channelID, "<:blanche:346144078292844556>: Wisdom over instinct; calm over valor. Blanche welcomes <@!" + userID + "> to <:mystic:346141360337977354>");
-		team = true;
-	}
-		
-	//Add to Valor role
-	if (message.search(/valor/i) != -1) {
+	} else if (message.search(/valor/i) != -1) { 
+		logger.info('Assigning valor role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: valorID
 		});
 		bot.removeFromRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: mysticID
 		});
 		bot.removeFromRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: instinctID
 		});
 		typeMessage(channelID, "<:candela:346144078989361152>: In darkest night we are the flame! Candela welcomes <@!" + userID + "> to <:valor:346141360031793154>");
-		team = true;
-	}
-		
-	//Add to Instinct role
-	if (message.search(/instinct/i) != -1) {
+	} else if (message.search(/instinct/i) != -1) {
+		logger.info('Assigning instinct role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: instinctID
 		});
 		bot.removeFromRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: valorID
 		});
 		bot.removeFromRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: mysticID
 		});
 		typeMessage(channelID, "<:spark:346144078905212928>: There is no shelter from the storm! Spark welcomes <@!" + userID + "> to <:instinct:346141360132325377>");
-		team = true;
+	} else {
+		team = false;
 	}
 		
 	return team;
@@ -201,8 +226,9 @@ function checkAreas(channelID, userID, message){
 		
 	//Add to Richmond role
 	if (message.search(/richmond/i) != -1) {
+		logger.info('Assigning richmond role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: richmondID
 		});
@@ -212,8 +238,9 @@ function checkAreas(channelID, userID, message){
 		
 	//Add to Armada Role
 	if (message.search(/armada/i) != -1) {
+		logger.info('Assigning armada role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: armadaID
 		});
@@ -223,8 +250,9 @@ function checkAreas(channelID, userID, message){
 		
 	//Add to New Haven role
 	if (message.search(/new haven/i) != -1) {
+		logger.info('Assigning newhaven role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: newHavenID
 		});
@@ -234,8 +262,9 @@ function checkAreas(channelID, userID, message){
 		
 	//Add to New Baltimore role
 	if (message.search(/new baltimore/i) != -1) {
+		logger.info('Assigning newbaltimore role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: newBaltimoreID
 		});
@@ -245,8 +274,9 @@ function checkAreas(channelID, userID, message){
 		
 	//Add to Memphis role
 	if (message.search(/memphis/i) != -1) {
+		logger.info('Assigning memphis role to ' + bot.users[userID].username );
 		bot.addToRole({
-			serverID: serverID,
+			serverID: bot.channels[channelID].guild_id,
 			userID: userID,
 			roleID: memphisID
 		});
@@ -258,6 +288,7 @@ function checkAreas(channelID, userID, message){
 	if (city == false 
 		&& (message.search(/detroit/i) != -1 || message.search(/macomb/i) != -1 || message.search(/clemens/i) != -1 
 			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 )) {
+		logger.info('Sending informational city role message to ' + bot.users[userID].username );
 		typeMessage(channelID, "<@!" + userID + ">, just FYI we serve Northeast Macomb (Armada, Memphis, Richmond, New Haven, & New Baltimore). You are certainly welcome to join even if you only play in these areas occasionally!" );
 		city = true;
 	}
@@ -270,6 +301,7 @@ function sendRules(channelID, memberTag) {
 		//TODO: create error
 	} else {
 		//send rules and !gotcha instructions
+		logger.info('Sending rules to ' + memberTag );
 		bot.sendMessage({
 			to: channelID,
 			message: "OK, " + memberTag + ", you are almost ready to go! Just look over these rules:\n\n"
@@ -283,6 +315,84 @@ function sendRules(channelID, memberTag) {
 	}
 };
 
+function deleteUserMentions(channelID, userID) {
+	var messageIDs = [];
+	
+	bot.getMessages({
+		channelID: channelID,
+		limit: 50
+	}, function(err, messages) {
+		if (err) {
+			console.log(err);
+		} else {
+			for(var i=0; i < messages.length; i++){
+				for(var j=0; j < messages[i].mentions.length; j++){
+					if (messages[i].mentions[j].id == userID) {
+						logger.info("Deleting message. id:" + messages[i].id
+							+ " message:" + messages[i].content);
+						messageIDs.push(messages[i].id);
+					}
+				}
+			}
+			
+			if (messageIDs.length == 1) {
+				bot.deleteMessage({
+					channelID: channelID, 
+					messageID: messageIDs[0]
+				});
+			} else {
+				deleteMessages(channelID, messageIDs);
+			}
+		}
+	});
+};
+
+function deleteUserMessages(channelID, userID) {
+	var messageIDs = [];
+	
+	bot.getMessages({
+		channelID: channelID,
+		limit: 50
+	}, function(err, messages) {
+		if (err) {
+			console.log(err);
+		} else {
+			for(var i=0; i < messages.length; i++){
+				if (messages[i].author.id == userID) {
+					logger.info("Deleting message. id:" + messages[i].id
+						+ " message:" + messages[i].content);
+					messageIDs.push(messages[i].id);
+				}
+			}
+				
+			if (messageIDs.length == 1) {
+				bot.deleteMessage({
+					channelID: channelID, 
+					messageID: messageIDs[0]
+				});
+			} else {
+				deleteMessages(channelID, messageIDs);
+			}
+		}
+	});
+};
+
+function deleteMessages(channelID, messageIDs) {
+	bot.deleteMessages({
+		channelID: channelID,
+		messageIDs: messageIDs,
+	}, function(err,m) {
+		if (err) {
+			console.log(err);
+			if (err.statusCode == 429) { 
+				setTimeout(function() {
+					deleteMessages(channelID, messageIDs);
+				}, err.response.retry_after);
+			}
+		}
+	});
+};
+
 
 function typeMessage(channelID, message) {
 		bot.simulateTyping(channelID);
@@ -291,5 +401,5 @@ function typeMessage(channelID, message) {
 				to: channelID,
 				message: message
 			});
-		}, 1000);
+		}, 4000);
 };
