@@ -16,6 +16,7 @@ var bot = new Discord.Client({
 var serverID = '339135606502457344'; 			
 var testChannelID = '549428035611394050';  		//jenny-test
 var welcomeChannelID = '470378095103311872';	//real channel
+var adminChannelID = '343405095037304843';
 
 //roleIDs
 var adminID = "343213676767215626";
@@ -25,6 +26,7 @@ var armadaID = '408038356556054548';
 var newHavenID = '408038898636423168';
 var newBaltimoreID = '408038954634444818';
 var memphisID = '408038488504795158';
+var chesterfieldID = '554415178972790785';
 var mysticID = '343212056423432194';
 var valorID = '343212127294849024';
 var instinctID = '343211717570068481';
@@ -59,6 +61,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 	if (!bot.users[userID].bot && (channelID == welcomeChannelID || channelID == testChannelID) ) {
 		
 		logger.info("New Message. user: " + user 
+			+ ",id: " + evt.d.id
 			+ ", message: " + message);
 		
 		// Our bot first needs to know if it is being asked to execute a command
@@ -70,35 +73,36 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			logger.info("Command detected. args: " + args);
 			switch(cmd) {
 				case 'welcome':
-					//Send Welcome Prompt to the user mentioned
 					//TODO: Verify admin privileges
-					sendWelcome(channelID, memberTag);
 					//Delete command
 					bot.deleteMessage({
 						channelID: channelID, 
 						messageID: evt.d.id
 					});
+					//Send Welcome Prompt to the user mentioned
+					setTimeout(function() {
+						sendWelcome(channelID, memberTag);
+					}, 100);
 					break;
 				case "rules":
-					//Send Rules Prompt to the user mentioned
 					//TODO: Verify admin privileges
-					sendRules(channelID, memberTag);
 					//Delete command
 					bot.deleteMessage({
 						channelID: channelID, 
 						messageID: evt.d.id
 					});
-					break;
-				case "tutorial":	// This is a Meowth command, but we want it to do more.
-					//Send Rules Prompt to user after a 5 minute pause.
-					setTimeout(function() {
-						sendRules(channelID, "<@!" + userID + ">");
-					}, 240000);
+					//Send Rules Prompt to the user mentioned
+					sendRules(channelID, memberTag);
 					break;
 				case "gotcha":	// This is a custom Dyno command, but we want it to do more
 					//Delete all messages that mention the user
-					deleteUserMentions(channelID, userID);
-					deleteUserMessages(channelID, userID);
+					setTimeout(function() {
+						deleteUserMentions(channelID, userID);
+					}, 500);
+					//Delete all messages that the user has posted
+					setTimeout(function() {
+						deleteUserMessages(channelID, userID);
+					}, 500);
 					break;
 			}
 
@@ -106,12 +110,18 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 		} else if (evt.d.attachments.length == 1) {
 			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" 
 				+ adminID + "> will come by sometime soon to review it. Thanks, <@!" + userID + ">!");
+			//Send Team prompt to user
 			setTimeout(function() {
-				//Send Team prompt to user
 				typeMessage(channelID, "While we wait, <@!" + userID + ">, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?");
 			}, 5000);
+			//Forward message to admin channel
+			bot.sendMessage({
+				to: adminChannelID,
+				message: " Verification needed for user " + user + ".\n" 
+						+ evt.d.attachments[0].proxy_url 
+			});
+/* 			//Forward screen shot via DM to all mods
 			setTimeout(function() {
-				//Forward screen shot via DM to all mods
 				for (var i=0; i < mods.length; i++) {
 					logger.info("Sending verification DM to: " + mods[i] + ", url:" + evt.d.attachments[0].proxy_url);
 					bot.sendMessage({
@@ -120,19 +130,23 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 							+ evt.d.attachments[0].proxy_url 
 					});
 				}
-			}, 300000);
+			}, 115000); */
 		//Look for team keywords
 		} else if (checkTeams(channelID, userID, message)) {
 			setTimeout(function() {
 				//Send Areas prompt to user
-				typeMessage(channelID, "Next, <@!" + userID + ">, tell me: where do you play \(**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**\)?");
+				typeMessage(channelID, "Next, <@!" + userID + ">, tell me: where do you play \(**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**, **Chesterfield**\)?");
 			}, 5000);
 		//Look for area keywords
 		} else if (checkAreas(channelID, userID, message)) {
+			//Send Tutorial prompt to user
 			setTimeout(function() {
-				//Send Tutorial prompt to user
 				typeMessage(channelID, "<@!" + userID + ">, this server uses Meowth bot to coordinate raids. It’s a little difficult to get used to, but very handy once you get the hang of it. There is an (optional) in-depth Meowth tutorial. To try it out, type: **!tutorial**");
 			}, 5000);
+			//Send Rules Prompt to user after a 5 minute pause.
+			setTimeout(function() {
+				sendRules(channelID, "<@!" + userID + ">");
+			}, 235000);
 		}
 	}
 	 
@@ -282,6 +296,18 @@ function checkAreas(channelID, userID, message){
 		});
 		typeMessage(channelID, "<@!" + userID + ">, you play in Memphis?  That's great! I'll sign you up for Memphis notifications.  (You can turn this off later.)");
 		city = true;
+	} 
+	
+	//Add to Chesterfield role
+	if (message.search(/chesterfield/i) != -1) {
+		logger.info('Assigning chesterfield role to ' + bot.users[userID].username );
+		bot.addToRole({
+			serverID: bot.channels[channelID].guild_id,
+			userID: userID,
+			roleID: chesterfieldID
+		});
+		typeMessage(channelID, "<@!" + userID + ">, you play in Chesterfield?  That's great! I'll sign you up for Chesterfield notifications.  (You can turn this off later.)");
+		city = true;
 	}
 		
 	//Say something if they mention other key place names
@@ -323,26 +349,27 @@ function deleteUserMentions(channelID, userID) {
 		limit: 50
 	}, function(err, messages) {
 		if (err) {
-			console.log(err);
+			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
 		} else {
 			for(var i=0; i < messages.length; i++){
 				for(var j=0; j < messages[i].mentions.length; j++){
 					if (messages[i].mentions[j].id == userID) {
-						logger.info("Deleting message. id:" + messages[i].id
-							+ " message:" + messages[i].content);
+						logger.info("Deleting message. id:" + messages[i].id);
 						messageIDs.push(messages[i].id);
 					}
 				}
 			}
 			
-			if (messageIDs.length == 1) {
-				bot.deleteMessage({
-					channelID: channelID, 
-					messageID: messageIDs[0]
-				});
-			} else {
-				deleteMessages(channelID, messageIDs);
-			}
+			setTimeout(function() {
+				if (messageIDs.length == 1) {
+					bot.deleteMessage({
+						channelID: channelID, 
+						messageID: messageIDs[0]
+					});
+				} else {
+					deleteMessages(channelID, messageIDs);
+				}
+			}, 1000);
 		}
 	});
 };
@@ -355,24 +382,25 @@ function deleteUserMessages(channelID, userID) {
 		limit: 50
 	}, function(err, messages) {
 		if (err) {
-			console.log(err);
+			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
 		} else {
 			for(var i=0; i < messages.length; i++){
 				if (messages[i].author.id == userID) {
-					logger.info("Deleting message. id:" + messages[i].id
-						+ " message:" + messages[i].content);
+					logger.info("Deleting message. id:" + messages[i].id);
 					messageIDs.push(messages[i].id);
 				}
 			}
-				
-			if (messageIDs.length == 1) {
-				bot.deleteMessage({
-					channelID: channelID, 
-					messageID: messageIDs[0]
-				});
-			} else {
-				deleteMessages(channelID, messageIDs);
-			}
+			
+			setTimeout(function() {
+				if (messageIDs.length == 1) {
+					bot.deleteMessage({
+						channelID: channelID, 
+						messageID: messageIDs[0]
+					});
+				} else {
+					deleteMessages(channelID, messageIDs);
+				}
+			}, 1000);
 		}
 	});
 };
@@ -383,7 +411,7 @@ function deleteMessages(channelID, messageIDs) {
 		messageIDs: messageIDs,
 	}, function(err,m) {
 		if (err) {
-			console.log(err);
+			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
 			if (err.statusCode == 429) { 
 				setTimeout(function() {
 					deleteMessages(channelID, messageIDs);
