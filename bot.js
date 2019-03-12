@@ -120,7 +120,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 				message: " Verification needed for user " + user + ".\n" 
 						+ evt.d.attachments[0].proxy_url 
 			});
-/* 			//Forward screen shot via DM to all mods
+			//Forward screen shot via DM to all mods
 			setTimeout(function() {
 				for (var i=0; i < mods.length; i++) {
 					logger.info("Sending verification DM to: " + mods[i] + ", url:" + evt.d.attachments[0].proxy_url);
@@ -130,7 +130,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 							+ evt.d.attachments[0].proxy_url 
 					});
 				}
-			}, 115000); */
+			}, 115000);
 		//Look for team keywords
 		} else if (checkTeams(channelID, userID, message)) {
 			setTimeout(function() {
