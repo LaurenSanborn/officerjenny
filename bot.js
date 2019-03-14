@@ -31,9 +31,6 @@ var mysticID = '343212056423432194';
 var valorID = '343212127294849024';
 var instinctID = '343211717570068481';
 
-var mods = ["256626217711697921", "173958118001213441"];
-
-	
 bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
@@ -120,17 +117,6 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 				message: " Verification needed for user " + user + ".\n" 
 						+ evt.d.attachments[0].proxy_url 
 			});
-			//Forward screen shot via DM to all mods
-			setTimeout(function() {
-				for (var i=0; i < mods.length; i++) {
-					logger.info("Sending verification DM to: " + mods[i] + ", url:" + evt.d.attachments[0].proxy_url);
-					bot.sendMessage({
-						to: mods[i],
-						message: " Verification needed for user " + user + ".\n" 
-							+ evt.d.attachments[0].proxy_url 
-					});
-				}
-			}, 115000);
 		//Look for team keywords
 		} else if (checkTeams(channelID, userID, message)) {
 			setTimeout(function() {
