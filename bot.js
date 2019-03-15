@@ -299,7 +299,7 @@ function checkAreas(channelID, userID, message){
 	//Say something if they mention other key place names
 	if (city == false 
 		&& (message.search(/detroit/i) != -1 || message.search(/macomb/i) != -1 || message.search(/clemens/i) != -1 
-			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 )) {
+			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 || message.search(/michigan/i)) {
 		logger.info('Sending informational city role message to ' + bot.users[userID].username );
 		typeMessage(channelID, "<@!" + userID + ">, just FYI we serve Northeast Macomb (Armada, Memphis, Richmond, New Haven, & New Baltimore). You are certainly welcome to join even if you only play in these areas occasionally!" );
 		city = true;
