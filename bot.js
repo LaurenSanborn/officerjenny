@@ -110,7 +110,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			//Send Team prompt to user
 			setTimeout(function() {
 				typeMessage(channelID, "While we wait, <@!" + userID + ">, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?");
-			}, 5000);
+			}, 2000);
 			//Forward message to admin channel
 			bot.sendMessage({
 				to: adminChannelID,
@@ -122,17 +122,17 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			setTimeout(function() {
 				//Send Areas prompt to user
 				typeMessage(channelID, "Next, <@!" + userID + ">, tell me: where do you play \(**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**, **Chesterfield**\)?");
-			}, 5000);
+			}, 2000);
 		//Look for area keywords
 		} else if (checkAreas(channelID, userID, message)) {
 			//Send Tutorial prompt to user
 			setTimeout(function() {
 				typeMessage(channelID, "<@!" + userID + ">, this server uses Meowth bot to coordinate raids. It’s a little difficult to get used to, but very handy once you get the hang of it. There is an (optional) in-depth Meowth tutorial. To try it out, type: **!tutorial**");
-			}, 5000);
-			//Send Rules Prompt to user after a 5 minute pause.
+			}, 2000);
+			//Send Rules Prompt to user after a 2 minute pause.
 			setTimeout(function() {
 				sendRules(channelID, "<@!" + userID + ">");
-			}, 235000);
+			}, 120000);
 		}
 	}
 	 
@@ -298,8 +298,12 @@ function checkAreas(channelID, userID, message){
 		
 	//Say something if they mention other key place names
 	if (city == false 
-		&& (message.search(/detroit/i) != -1 || message.search(/macomb/i) != -1 || message.search(/clemens/i) != -1 
-			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 || message.search(/michigan/i) != -1 )) {
+		&& ( message.search(/detroit/i) != -1 || message.search(/macomb/i) != -1 || message.search(/clemens/i) != -1 
+			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 
+			|| message.search(/michigan/i) != -1 || message.search(/sterling heights/i) != -1 
+			|| message.search(/shelby/i) != -1 
+			)
+		) {
 		logger.info('Sending informational city role message to ' + bot.users[userID].username );
 		typeMessage(channelID, "<@!" + userID + ">, just FYI we serve Northeast Macomb (Armada, Memphis, Richmond, New Haven, & New Baltimore). You are certainly welcome to join even if you only play in these areas occasionally!" );
 		city = true;
