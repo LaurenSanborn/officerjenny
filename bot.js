@@ -47,11 +47,31 @@ bot.on('disconnect', function(errMsg, code) {
 });
 
 bot.on('guildMemberAdd', function(member) {
-	//TODO: Add new member to new user role
-	console.log(member);
+	logger.info("New member. " + member.id);
+	
+	//Add new member to new user role
+	bot.addToRole({
+		serverID: bot.channels[welcomeChannelID].guild_id,
+		userID: member.id,
+		roleID: newUserID
+	});
 	
 	//Send Welcome Prompt to the new member
 	sendWelcome(welcomeChannelID, "<@!" + member.id + ">");
+});
+
+bot.on('guildMemberRemove', function(member) {
+	logger.info("Member left. " + member.id);
+						
+	//Delete all messages that mention the user
+	setTimeout(function() {
+		deleteUserMentions(welcomeChannelID, member.id);
+	}, 500);
+					
+	//Delete all messages that the user has posted
+	setTimeout(function() {
+		deleteUserMessages(welcomeChannelID, member.id);
+	}, 500);
 });
 
 bot.on('messageCreate', function (user, userID, channelID, message, evt) {
@@ -249,7 +269,7 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Add to New Haven role
-	if (message.search(/new haven/i) != -1) {
+	if (message.search(/new haven/i) != -1 || message.search(/newhaven/i) != -1) {
 		logger.info('Assigning newhaven role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -261,7 +281,7 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Add to New Baltimore role
-	if (message.search(/new baltimore/i) != -1) {
+	if (message.search(/new baltimore/i) != -1 || message.search(/newbaltimore/i) != -1) {
 		logger.info('Assigning newbaltimore role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -301,7 +321,8 @@ function checkAreas(channelID, userID, message){
 		&& ( message.search(/detroit/i) != -1 || message.search(/macomb/i) != -1 || message.search(/clemens/i) != -1 
 			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 
 			|| message.search(/michigan/i) != -1 || message.search(/sterling heights/i) != -1 
-			|| message.search(/shelby/i) != -1 
+			|| message.search(/shelby/i) != -1 || message.search(/marine city/i) != -1 
+			|| message.search(/utica/i) != -1
 			)
 		) {
 		logger.info('Sending informational city role message to ' + bot.users[userID].username );
@@ -336,7 +357,7 @@ function deleteUserMentions(channelID, userID) {
 	
 	bot.getMessages({
 		channelID: channelID,
-		limit: 50
+		limit: 200
 	}, function(err, messages) {
 		if (err) {
 			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
@@ -356,7 +377,7 @@ function deleteUserMentions(channelID, userID) {
 						channelID: channelID, 
 						messageID: messageIDs[0]
 					});
-				} else {
+				} else if (messageIDs.length > 1) {
 					deleteMessages(channelID, messageIDs);
 				}
 			}, 1000);
@@ -369,7 +390,7 @@ function deleteUserMessages(channelID, userID) {
 	
 	bot.getMessages({
 		channelID: channelID,
-		limit: 50
+		limit: 200
 	}, function(err, messages) {
 		if (err) {
 			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
@@ -387,7 +408,7 @@ function deleteUserMessages(channelID, userID) {
 						channelID: channelID, 
 						messageID: messageIDs[0]
 					});
-				} else {
+				} else if (messageIDs.length > 1) {
 					deleteMessages(channelID, messageIDs);
 				}
 			}, 1000);
@@ -413,11 +434,11 @@ function deleteMessages(channelID, messageIDs) {
 
 
 function typeMessage(channelID, message) {
-		bot.simulateTyping(channelID);
-		setTimeout(function() {
-			bot.sendMessage({
-				to: channelID,
-				message: message
-			});
-		}, 4000);
+	bot.simulateTyping(channelID);
+	setTimeout(function() {
+		bot.sendMessage({
+			to: channelID,
+			message: message
+		});
+	}, 2000);
 };
