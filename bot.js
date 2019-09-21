@@ -145,14 +145,10 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			}, 2000);
 		//Look for area keywords
 		} else if (checkAreas(channelID, userID, message)) {
-			//Send Tutorial prompt to user
-			setTimeout(function() {
-				typeMessage(channelID, "<@!" + userID + ">, this server uses Meowth bot to coordinate raids. It’s a little difficult to get used to, but very handy once you get the hang of it. There is an (optional) in-depth Meowth tutorial. To try it out, type: **!tutorial**");
-			}, 2000);
 			//Send Rules Prompt to user after a 2 minute pause.
 			setTimeout(function() {
 				sendRules(channelID, "<@!" + userID + ">");
-			}, 120000);
+			}, 2000);
 		}
 	}
 	 
