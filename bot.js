@@ -1,5 +1,5 @@
-var Discord = require('discord.io');
-var logger = require('winston');
+const Discord = require('discord.io');
+const logger = require('winston');
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -7,31 +7,32 @@ logger.add(new logger.transports.Console, {
     colorize: true
 });
 logger.level = 'debug';
+
 // Initialize Discord Bot
-var bot = new Discord.Client({
-   token: process.env.BOT_TOKEN,
-   autorun: true
+const bot = new Discord.Client({
+	token: process.env.BOT_TOKEN,
+	autorun: true
 });
 
-var serverID = '339135606502457344'; 			
-var testChannelID = '549428035611394050';  		//jenny-test
-var welcomeChannelID = '470378095103311872';	//real channel
-var adminChannelID = '343405095037304843';
+//channel IDs
+const testChannelID = '549428035611394050';  	//jenny-test
+const welcomeChannelID = '470378095103311872';	//real channel
+const adminChannelID = '343405095037304843';
 
-//roleIDs
-var adminID = "343213676767215626";
-var newUserID = "346093568093585410";
-var richmondID = '408038839601332224';
-var armadaID = '408038356556054548';
-var newHavenID = '408038898636423168';
-var newBaltimoreID = '408038954634444818';
-var memphisID = '408038488504795158';
-var chesterfieldID = '554415178972790785';
-var mysticID = '343212056423432194';
-var valorID = '343212127294849024';
-var instinctID = '343211717570068481';
+//role IDs
+const adminID = "343213676767215626";
+const newUserID = "346093568093585410";
+const richmondID = '408038839601332224';
+const armadaID = '408038356556054548';
+const newHavenID = '408038898636423168';
+const newBaltimoreID = '408038954634444818';
+const memphisID = '408038488504795158';
+const chesterfieldID = '554415178972790785';
+const mysticID = '343212056423432194';
+const valorID = '343212127294849024';
+const instinctID = '343211717570068481';
 
-bot.on('ready', function (evt) {
+bot.on('ready', function () {
     logger.info('Connected');
     logger.info('Logged in as: ');
     logger.info(bot.username + ' - (' + bot.id + ')');
@@ -75,7 +76,7 @@ bot.on('guildMemberRemove', function(member) {
 });
 
 bot.on('messageCreate', function (user, userID, channelID, message, evt) {
-	if (!bot.users[userID].bot && (channelID == welcomeChannelID || channelID == testChannelID) ) {
+	if (!bot.users[userID].bot && (channelID === welcomeChannelID || channelID === testChannelID) ) {
 		
 		logger.info("New Message. user: " + user 
 			+ ",id: " + evt.d.id
@@ -83,10 +84,10 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 		
 		// Our bot first needs to know if it is being asked to execute a command
 		// It will listen for messages that will start with `!`
-		if (message.substring(0, 1) == '!') {
-			var args = message.substring(1).split(' ');
-			var cmd = args[0];
-			var memberTag = args[1];
+		if (message.substring(0, 1) === '!') {
+			const args = message.substring(1).split(' ');
+			const cmd = args[0];
+			const memberTag = args[1];
 			logger.info("Command detected. args: " + args);
 			switch(cmd) {
 				case 'welcome':
@@ -124,7 +125,7 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 			}
 
 		//Check for screen shot (assumes an attachment is the screen shot)
-		} else if (evt.d.attachments.length == 1) {
+		} else if (evt.d.attachments.length === 1) {
 			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" 
 				+ adminID + "> will come by sometime soon to review it. Thanks, <@!" + userID + ">!");
 			//Send Team prompt to user
@@ -155,11 +156,11 @@ bot.on('messageCreate', function (user, userID, channelID, message, evt) {
 });
 
 function sendWelcome(channelID, memberTag) {
-	var welcomeMessage;
-	
+	let welcomeMessage;
+
 	logger.info('Sending welcome message to ' + memberTag );
 	
-	if (memberTag == undefined) {
+	if (memberTag === undefined) {
 		welcomeMessage = "Hold it right there! I need to check your trainer information before I can let you through!\n\nPlease take a screen shot of your player profile in the game and post it here.\n\nHere's an example:";
 	} else {
 		welcomeMessage = "Hold it right there! I need to check your trainer information before I can let you through, " + memberTag + "!\n\nPlease take a screen shot of your player profile in the game and post it here.\n\nHere's an example:";
@@ -171,12 +172,12 @@ function sendWelcome(channelID, memberTag) {
 		file: 'screenshot.jpg',
 		message: welcomeMessage
 	});
-};
+}
 
 function checkTeams(channelID, userID, message) {
-	var team = true;
-		
-	if (message.search(/mystic/i) != -1) {
+	let team = true;
+
+	if (message.search(/mystic/i) !== -1) {
 		logger.info('Assigning mystic role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -194,7 +195,7 @@ function checkTeams(channelID, userID, message) {
 			roleID: instinctID
 		});
 		typeMessage(channelID, "<:blanche:346144078292844556>: Wisdom over instinct; calm over valor. Blanche welcomes <@!" + userID + "> to <:mystic:346141360337977354>");
-	} else if (message.search(/valor/i) != -1) { 
+	} else if (message.search(/valor/i) !== -1) {
 		logger.info('Assigning valor role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -212,7 +213,7 @@ function checkTeams(channelID, userID, message) {
 			roleID: instinctID
 		});
 		typeMessage(channelID, "<:candela:346144078989361152>: In darkest night we are the flame! Candela welcomes <@!" + userID + "> to <:valor:346141360031793154>");
-	} else if (message.search(/instinct/i) != -1) {
+	} else if (message.search(/instinct/i) !== -1) {
 		logger.info('Assigning instinct role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -238,10 +239,10 @@ function checkTeams(channelID, userID, message) {
 }
 
 function checkAreas(channelID, userID, message){
-	var city = false;
-		
+	let city = false;
+
 	//Add to Richmond role
-	if (message.search(/richmond/i) != -1) {
+	if (message.search(/richmond/i) !== -1) {
 		logger.info('Assigning richmond role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -253,7 +254,7 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Add to Armada Role
-	if (message.search(/armada/i) != -1) {
+	if (message.search(/armada/i) !== -1) {
 		logger.info('Assigning armada role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -265,7 +266,7 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Add to New Haven role
-	if (message.search(/new haven/i) != -1 || message.search(/newhaven/i) != -1) {
+	if (message.search(/new haven/i) !== -1 || message.search(/newhaven/i) !== -1) {
 		logger.info('Assigning newhaven role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -277,7 +278,7 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Add to New Baltimore role
-	if (message.search(/new baltimore/i) != -1 || message.search(/newbaltimore/i) != -1) {
+	if (message.search(/new baltimore/i) !== -1 || message.search(/newbaltimore/i) !== -1) {
 		logger.info('Assigning newbaltimore role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -289,7 +290,7 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Add to Memphis role
-	if (message.search(/memphis/i) != -1) {
+	if (message.search(/memphis/i) !== -1) {
 		logger.info('Assigning memphis role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -301,7 +302,7 @@ function checkAreas(channelID, userID, message){
 	} 
 	
 	//Add to Chesterfield role
-	if (message.search(/chesterfield/i) != -1) {
+	if (message.search(/chesterfield/i) !== -1) {
 		logger.info('Assigning chesterfield role to ' + bot.users[userID].username );
 		bot.addToRole({
 			serverID: bot.channels[channelID].guild_id,
@@ -313,12 +314,12 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	//Say something if they mention other key place names
-	if (city == false 
-		&& ( message.search(/detroit/i) != -1 || message.search(/macomb/i) != -1 || message.search(/clemens/i) != -1 
-			|| message.search(/claire shore/i) != -1 || message.search(/algonac/i) != -1 
-			|| message.search(/michigan/i) != -1 || message.search(/sterling heights/i) != -1 
-			|| message.search(/shelby/i) != -1 || message.search(/marine city/i) != -1 
-			|| message.search(/utica/i) != -1
+	if (city === false
+		&& ( message.search(/detroit/i) !== -1 || message.search(/macomb/i) !== -1 || message.search(/clemens/i) !== -1
+			|| message.search(/claire shore/i) !== -1 || message.search(/algonac/i) !== -1
+			|| message.search(/michigan/i) !== -1 || message.search(/sterling heights/i) !== -1
+			|| message.search(/shelby/i) !== -1 || message.search(/marine city/i) !== -1
+			|| message.search(/utica/i) !== -1
 			)
 		) {
 		logger.info('Sending informational city role message to ' + bot.users[userID].username );
@@ -327,10 +328,10 @@ function checkAreas(channelID, userID, message){
 	}
 		
 	return city;
-};
+}
 
 function sendRules(channelID, memberTag) {
-	if (memberTag == undefined) {
+	if (memberTag === undefined) {
 		//TODO: create error
 	} else {
 		//send rules and !gotcha instructions
@@ -346,11 +347,11 @@ function sendRules(channelID, memberTag) {
 				+ "Enter the command **!gotcha** to signify that you've read these rules and are ready to participate in our community!"
 		});
 	}
-};
+}
 
 function deleteUserMentions(channelID, userID) {
-	var messageIDs = [];
-	
+	const messageIDs = [];
+
 	bot.getMessages({
 		channelID: channelID,
 		limit: 200
@@ -358,9 +359,9 @@ function deleteUserMentions(channelID, userID) {
 		if (err) {
 			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
 		} else {
-			for(var i=0; i < messages.length; i++){
-				for(var j=0; j < messages[i].mentions.length; j++){
-					if (messages[i].mentions[j].id == userID) {
+			for(let i=0; i < messages.length; i++){
+				for(let j=0; j < messages[i].mentions.length; j++){
+					if (messages[i].mentions[j].id === userID) {
 						logger.info("Deleting message. id:" + messages[i].id);
 						messageIDs.push(messages[i].id);
 					}
@@ -368,7 +369,7 @@ function deleteUserMentions(channelID, userID) {
 			}
 			
 			setTimeout(function() {
-				if (messageIDs.length == 1) {
+				if (messageIDs.length === 1) {
 					bot.deleteMessage({
 						channelID: channelID, 
 						messageID: messageIDs[0]
@@ -379,11 +380,11 @@ function deleteUserMentions(channelID, userID) {
 			}, 1000);
 		}
 	});
-};
+}
 
 function deleteUserMessages(channelID, userID) {
-	var messageIDs = [];
-	
+	const messageIDs = [];
+
 	bot.getMessages({
 		channelID: channelID,
 		limit: 200
@@ -391,15 +392,15 @@ function deleteUserMessages(channelID, userID) {
 		if (err) {
 			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
 		} else {
-			for(var i=0; i < messages.length; i++){
-				if (messages[i].author.id == userID) {
+			for(let i=0; i < messages.length; i++){
+				if (messages[i].author.id === userID) {
 					logger.info("Deleting message. id:" + messages[i].id);
 					messageIDs.push(messages[i].id);
 				}
 			}
 			
 			setTimeout(function() {
-				if (messageIDs.length == 1) {
+				if (messageIDs.length === 1) {
 					bot.deleteMessage({
 						channelID: channelID, 
 						messageID: messageIDs[0]
@@ -410,23 +411,23 @@ function deleteUserMessages(channelID, userID) {
 			}, 1000);
 		}
 	});
-};
+}
 
 function deleteMessages(channelID, messageIDs) {
 	bot.deleteMessages({
 		channelID: channelID,
 		messageIDs: messageIDs,
-	}, function(err,m) {
+	}, function(err) {
 		if (err) {
 			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
-			if (err.statusCode == 429) { 
+			if (err.statusCode === 429) {
 				setTimeout(function() {
 					deleteMessages(channelID, messageIDs);
 				}, err.response.retry_after);
 			}
 		}
 	});
-};
+}
 
 
 function typeMessage(channelID, message) {
@@ -437,4 +438,4 @@ function typeMessage(channelID, message) {
 			message: message
 		});
 	}, 2000);
-};
+}
