@@ -1,236 +1,181 @@
-const Discord = require('discord.io');
+const Discord = require('discord.js');
 const logger = require('winston');
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
 logger.add(new logger.transports.Console, {
-    colorize: true
+	colorize: true
 });
 logger.level = 'debug';
 
 // Initialize Discord Bot
-const bot = new Discord.Client({
-	token: process.env.BOT_TOKEN,
-	autorun: true
-});
+const bot = new Discord.Client();
+bot.login(process.env.BOT_TOKEN);
 
-//channel IDs
-const testChannelID = '549428035611394050';  	//jenny-test
-const welcomeChannelID = '470378095103311872';	//real channel
-const adminChannelID = '343405095037304843';
-
-//role IDs
-const adminID = "343213676767215626";
-const newUserID = "346093568093585410";
-const richmondID = '408038839601332224';
-const armadaID = '408038356556054548';
-const newHavenID = '408038898636423168';
-const newBaltimoreID = '408038954634444818';
-const memphisID = '408038488504795158';
-const chesterfieldID = '554415178972790785';
-const mysticID = '343212056423432194';
-const valorID = '343212127294849024';
-const instinctID = '343211717570068481';
-
-bot.on('ready', function () {
+bot.on('ready', () => {
     logger.info('Connected');
-    logger.info('Logged in as: ');
-    logger.info(bot.username + ' - (' + bot.id + ')');
-	
-	bot.setPresence({
-		game: {name:"Welcome Bot v1.0"}
-	});
+	logger.info(`Logged in as ${bot.user.tag}!`);
+
+	bot.user.setPresence({
+		status: 'online',
+		game: {name: 'Welcome Bot v1.1'}
+	})
+		.then(presence => {
+			logger.info(`Set Presence: ${presence.status}`);
+		})
+		.catch(console.error);
 });
 
-bot.on('disconnect', function(errMsg, code) { 
-	logger.info("Disconnected! errMsg:" + errMsg + ", code:" + code);
-	bot.connect();
+bot.on('disconnect', (errMsg, code) => {
+	logger.info(`Disconnected! errMsg:${errMsg}, code:${code}`);
 });
 
-bot.on('guildMemberAdd', function(member) {
-	logger.info("New member. " + member.id);
-	
+bot.on('guildMemberAdd', (member) => {
+	logger.info(`New member. ${member.user.username}`);
+	const newUserRole = member.guild.roles.cache.find(role => role.name === "new user");
+	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
+
 	//Add new member to new user role
-	bot.addToRole({
-		serverID: bot.channels[welcomeChannelID].guild_id,
-		userID: member.id,
-		roleID: newUserID
-	});
+	member.roles.add(newUserRole);
 	
 	//Send Welcome Prompt to the new member
-	sendWelcome(welcomeChannelID, "<@!" + member.id + ">");
+	sendWelcome(welcomeChannel, member);
 });
 
-bot.on('guildMemberRemove', function(member) {
-	logger.info("Member left. " + member.id);
-						
+bot.on('guildMemberRemove', (member) => {
+	logger.info(`Member left. ${member.user.username}`);
+	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
+
 	//Delete all messages that mention the user
-	setTimeout(function() {
-		deleteUserMentions(welcomeChannelID, member.id);
-	}, 500);
-					
+	deleteMemberMentions(welcomeChannel, member);
 	//Delete all messages that the user has posted
-	setTimeout(function() {
-		deleteUserMessages(welcomeChannelID, member.id);
-	}, 500);
+	deleteMemberMessages(welcomeChannel, member);
 });
 
-bot.on('messageCreate', function (user, userID, channelID, message, evt) {
-	if (!bot.users[userID].bot && (channelID === welcomeChannelID || channelID === testChannelID) ) {
-		
-		logger.info("New Message. user: " + user 
-			+ ",id: " + evt.d.id
-			+ ", message: " + message);
+bot.on('message', (message) => {
+	const user = message.author;
+	const member = message.guild.members.cache.get(user.id);
+	const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
+	const newUserRole = message.guild.roles.cache.find(role => role.name === "new user");
+	const welcomeChannel = bot.channels.cache.find(channel => channel.name ==="welcome");
+	const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
+	const chatChannel = bot.channels.cache.find(channel => channel.name === "chat");
+
+	if (!user.bot && message.channel.id === welcomeChannel.id) {
+		logger.info(`New Message. user: ${user.username}, message: ${message.content}`);
 		
 		// Our bot first needs to know if it is being asked to execute a command
 		// It will listen for messages that will start with `!`
-		if (message.substring(0, 1) === '!') {
-			const args = message.substring(1).split(' ');
+		if (message.content.startsWith("!")) {
+			const args = message.content.substring(1).split(' ');
 			const cmd = args[0];
-			const memberTag = args[1];
-			logger.info("Command detected. args: " + args);
+			let mentionedMember = null;
+			if(message.mentions.users.first()) {
+				mentionedMember = message.guild.members.cache.get(message.mentions.users.first().id);
+			}
+
+			logger.info(`Command detected. args: ${args}`);
 			switch(cmd) {
 				case 'welcome':
 					//TODO: Verify admin privileges
-					//Delete command
-					bot.deleteMessage({
-						channelID: channelID, 
-						messageID: evt.d.id
-					});
 					//Send Welcome Prompt to the user mentioned
-					setTimeout(function() {
-						sendWelcome(channelID, memberTag);
-					}, 100);
+					sendWelcome(welcomeChannel, mentionedMember);
 					break;
 				case "rules":
 					//TODO: Verify admin privileges
-					//Delete command
-					bot.deleteMessage({
-						channelID: channelID, 
-						messageID: evt.d.id
-					});
 					//Send Rules Prompt to the user mentioned
-					sendRules(channelID, memberTag);
+					sendRules(welcomeChannel, mentionedMember);
 					break;
-				case "gotcha":	// This is a custom Dyno command, but we want it to do more
+				case "gotcha":
+					member.roles.remove(newUserRole);
+					chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome ${member.displayName} to ${message.guild.name}!`)
 					//Delete all messages that mention the user
-					setTimeout(function() {
-						deleteUserMentions(channelID, userID);
-					}, 500);
+					deleteMemberMentions(welcomeChannel, member);
 					//Delete all messages that the user has posted
-					setTimeout(function() {
-						deleteUserMessages(channelID, userID);
-					}, 500);
+					deleteMemberMessages(welcomeChannel, member);
 					break;
 			}
 
+			//Delete command
+			message.delete();
+
 		//Check for screen shot (assumes an attachment is the screen shot)
-		} else if (evt.d.attachments.length === 1) {
-			typeMessage(channelID, "Oh, is that the screen shot I asked for?  If so, an <@&" 
-				+ adminID + "> will come by sometime soon to review it. Thanks, <@!" + userID + ">!");
+		} else if (message.attachments.array().length === 1) {
+			setTimeout(() => {
+				welcomeChannel.send(`Oh, is that the screen shot I asked for?  If so, an <@&${adminRole.id}> will come by sometime soon to review it. Thanks, <@!${user.id}>!`);
+			}, 2000);
 			//Send Team prompt to user
-			setTimeout(function() {
-				typeMessage(channelID, "While we wait, <@!" + userID + ">, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?");
+			setTimeout(() => {
+				welcomeChannel.send(`While we wait, <@!${user.id}>, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?`);
 			}, 2000);
 			//Forward message to admin channel
-			bot.sendMessage({
-				to: adminChannelID,
-				message: " Verification needed for user " + user + ".\n" 
-						+ evt.d.attachments[0].proxy_url 
-			});
+			let attachments = message.attachments.array();
+			adminChannel.send(`Verification needed for user ${user.username}. ${attachments[0].proxyURL}`);
 		//Look for team keywords
-		} else if (checkTeams(channelID, userID, message)) {
-			setTimeout(function() {
+		} else if (checkTeams(welcomeChannel, member, message)) {
+			setTimeout(() => {
 				//Send Areas prompt to user
-				typeMessage(channelID, "Next, <@!" + userID + ">, tell me: where do you play \(**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**, **Chesterfield**\)?");
+				welcomeChannel.send(`Next, <@!${user.id}>, tell me: where do you play (**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**, **Chesterfield**)?`);
 			}, 2000);
 		//Look for area keywords
-		} else if (checkAreas(channelID, userID, message)) {
-			//Send Rules Prompt to user after a 2 minute pause.
-			setTimeout(function() {
-				sendRules(channelID, "<@!" + userID + ">");
+		} else if (checkAreas(welcomeChannel, member, message)) {
+			//Send Rules Prompt to user
+			setTimeout(() => {
+				sendRules(welcomeChannel, member);
 			}, 2000);
 		}
 	}
 	 
 });
 
-function sendWelcome(channelID, memberTag) {
-	let welcomeMessage;
-
-	logger.info('Sending welcome message to ' + memberTag );
-	
-	if (memberTag === undefined) {
-		welcomeMessage = "Hold it right there! I need to check your trainer information before I can let you through!\n\nPlease take a screen shot of your player profile in the game and post it here.\n\nHere's an example:";
+function sendWelcome(channel, member) {
+	let memberStr = "";
+	if (member) {
+		logger.info(`Sending welcome message to ${member.user.username}`);
+		memberStr = `, <@!${member.user.id}>`;
 	} else {
-		welcomeMessage = "Hold it right there! I need to check your trainer information before I can let you through, " + memberTag + "!\n\nPlease take a screen shot of your player profile in the game and post it here.\n\nHere's an example:";
+		logger.info(`Sending general welcome message`);
 	}
-	
+
+	//Create welcome text
+	const welcomeMessage = `Hold it right there! I need to check your trainer information before I can let you through${memberStr}!
+
+Please take a screen shot of your player profile in the game and post it here.
+
+Here's an example:`;
+
+	// Create the attachment
+	const attachment = new Discord.MessageAttachment('screenshot.jpg');
+
 	//display initial welcome message
-	bot.uploadFile({
-		to: channelID,
-		file: 'screenshot.jpg',
-		message: welcomeMessage
-	});
+	channel.send(welcomeMessage, attachment);
 }
 
-function checkTeams(channelID, userID, message) {
+function checkTeams(channel, member, message) {
+	const mysticRole = message.guild.roles.cache.find(role => role.name === "mystic");
+	const valorRole = message.guild.roles.cache.find(role => role.name === "valor");
+	const instinctRole = message.guild.roles.cache.find(role => role.name === "instinct");
+
 	let team = true;
 
-	if (message.search(/mystic/i) !== -1) {
-		logger.info('Assigning mystic role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: mysticID
-		});
-		bot.removeFromRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: valorID
-		});
-		bot.removeFromRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: instinctID
-		});
-		typeMessage(channelID, "<:blanche:346144078292844556>: Wisdom over instinct; calm over valor. Blanche welcomes <@!" + userID + "> to <:mystic:346141360337977354>");
-	} else if (message.search(/valor/i) !== -1) {
-		logger.info('Assigning valor role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: valorID
-		});
-		bot.removeFromRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: mysticID
-		});
-		bot.removeFromRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: instinctID
-		});
-		typeMessage(channelID, "<:candela:346144078989361152>: In darkest night we are the flame! Candela welcomes <@!" + userID + "> to <:valor:346141360031793154>");
-	} else if (message.search(/instinct/i) !== -1) {
-		logger.info('Assigning instinct role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: instinctID
-		});
-		bot.removeFromRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: valorID
-		});
-		bot.removeFromRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: mysticID
-		});
-		typeMessage(channelID, "<:spark:346144078905212928>: There is no shelter from the storm! Spark welcomes <@!" + userID + "> to <:instinct:346141360132325377>");
+	if (/mystic/i.test(message)) {
+		logger.info(`Assigning mystic role to ${member.user.username}`);
+		member.roles.add(mysticRole);
+		member.roles.remove(valorRole);
+		member.roles.remove(instinctRole);
+		channel.send(`<:blanche:346144078292844556>: Wisdom over instinct; calm over valor. Blanche welcomes <@!${member.user.id}> to <:mystic:346141360337977354>`);
+	} else if (/valor/i.test(message)) {
+		logger.info(`Assigning valor role to ${member.user.username}`);
+		member.roles.add(valorRole);
+		member.roles.remove(mysticRole);
+		member.roles.remove(instinctRole);
+		channel.send(`<:candela:346144078989361152>: In darkest night we are the flame! Candela welcomes <@!${member.user.id}> to <:valor:346141360031793154>`);
+	} else if (/instinct/i.test(message)) {
+		logger.info(`Assigning instinct role to ${member.user.username}`);
+		member.roles.add(instinctRole);
+		member.roles.remove(mysticRole);
+		member.roles.remove(valorRole);
+		channel.send(`<:spark:346144078905212928>: There is no shelter from the storm! Spark welcomes <@!${member.user.id}> to <:instinct:346141360132325377>`);
 	} else {
 		team = false;
 	}
@@ -238,204 +183,116 @@ function checkTeams(channelID, userID, message) {
 	return team;
 }
 
-function checkAreas(channelID, userID, message){
+function checkAreas(channel, member, message){
+	const richmondRole = message.guild.roles.cache.find(role => role.name === "richmond");
+	const armadaRole = message.guild.roles.cache.find(role => role.name === "armada");
+	const newHavenRole = message.guild.roles.cache.find(role => role.name === "newhaven");
+	const newBaltimoreRole = message.guild.roles.cache.find(role => role.name === "newbaltimore");
+	const memphisRole = message.guild.roles.cache.find(role => role.name === "memphis");
+	const chesterfieldRole = message.guild.roles.cache.find(role => role.name === "chesterfield");
 	let city = false;
 
 	//Add to Richmond role
-	if (message.search(/richmond/i) !== -1) {
-		logger.info('Assigning richmond role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: richmondID
-		});
-		typeMessage(channelID, "<@!" + userID + ">, you play in Richmond?  That's great! I'll sign you up for Richmond notifications.  (You can turn this off later.)");
+	if (/richmond/i.test(message)) {
+		logger.info(`Assigning richmond role to ${member.user.username}`);
+		member.roles.add(richmondRole);
+		channel.send(`<@!${member.user.id}>, you play in Richmond?  That's great! I'll sign you up for Richmond notifications.  (You can turn this off later.)`);
 		city = true;
 	}
 		
 	//Add to Armada Role
-	if (message.search(/armada/i) !== -1) {
-		logger.info('Assigning armada role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: armadaID
-		});
-		typeMessage(channelID, "<@!" + userID + ">, you play in Armada?  That's great! I'll sign you up for Armada notifications.  (You can turn this off later.)");
+	if (/armada/i.test(message)) {
+		logger.info(`Assigning armada role to ${member.user.username}`);
+		member.roles.add(armadaRole);
+		channel.send(`<@!${member.user.id}>, you play in Armada?  That's great! I'll sign you up for Armada notifications.  (You can turn this off later.)`);
 		city = true;
 	}
 		
 	//Add to New Haven role
-	if (message.search(/new haven/i) !== -1 || message.search(/newhaven/i) !== -1) {
-		logger.info('Assigning newhaven role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: newHavenID
-		});
-		typeMessage(channelID, "<@!" + userID + ">, you play in New Haven?  That's great! I'll sign you up for New Haven notifications.  (You can turn this off later.)");
+	if (/new *haven/i.test(message)) {
+		logger.info(`Assigning newhaven role to ${member.user.username}`);
+		member.roles.add(newHavenRole);
+		channel.send(`<@!${member.user.id}>, you play in New Haven?  That's great! I'll sign you up for New Haven notifications.  (You can turn this off later.)`);
 		city = true;
 	}
 		
 	//Add to New Baltimore role
-	if (message.search(/new baltimore/i) !== -1 || message.search(/newbaltimore/i) !== -1) {
-		logger.info('Assigning newbaltimore role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: newBaltimoreID
-		});
-		typeMessage(channelID, "<@!" + userID + ">, you play in New Baltimore?  That's great! I'll sign you up for New Baltimore notifications.  (You can turn this off later.)");
+	if (/new *baltimore/i.test(message)) {
+		logger.info(`Assigning newbaltimore role to ${member.user.username}`);
+		member.roles.add(newBaltimoreRole);
+		channel.send(`<@!${member.user.id}>, you play in New Baltimore?  That's great! I'll sign you up for New Baltimore notifications.  (You can turn this off later.)`);
 		city = true;
 	}
 		
 	//Add to Memphis role
-	if (message.search(/memphis/i) !== -1) {
-		logger.info('Assigning memphis role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: memphisID
-		});
-		typeMessage(channelID, "<@!" + userID + ">, you play in Memphis?  That's great! I'll sign you up for Memphis notifications.  (You can turn this off later.)");
+	if (/memphis/i.test(message)) {
+		logger.info(`Assigning memphis role to ${member.user.username}`);
+		member.roles.add(memphisRole);
+		channel.send(`<@!${member.user.id}>, you play in Memphis?  That's great! I'll sign you up for Memphis notifications.  (You can turn this off later.)`);
 		city = true;
 	} 
 	
 	//Add to Chesterfield role
-	if (message.search(/chesterfield/i) !== -1) {
-		logger.info('Assigning chesterfield role to ' + bot.users[userID].username );
-		bot.addToRole({
-			serverID: bot.channels[channelID].guild_id,
-			userID: userID,
-			roleID: chesterfieldID
-		});
-		typeMessage(channelID, "<@!" + userID + ">, you play in Chesterfield?  That's great! I'll sign you up for Chesterfield notifications.  (You can turn this off later.)");
+	if (/chesterfield/i.test(message)) {
+		logger.info(`Assigning chesterfield role to ${member.user.username}`);
+		member.roles.add(chesterfieldRole);
+		channel.send(`<@!${member.user.id}>, you play in Chesterfield?  That's great! I'll sign you up for Chesterfield notifications.  (You can turn this off later.)`);
 		city = true;
 	}
 		
 	//Say something if they mention other key place names
-	if (city === false
-		&& ( message.search(/detroit/i) !== -1 || message.search(/macomb/i) !== -1 || message.search(/clemens/i) !== -1
-			|| message.search(/claire shore/i) !== -1 || message.search(/algonac/i) !== -1
-			|| message.search(/michigan/i) !== -1 || message.search(/sterling heights/i) !== -1
-			|| message.search(/shelby/i) !== -1 || message.search(/marine city/i) !== -1
-			|| message.search(/utica/i) !== -1
-			)
-		) {
-		logger.info('Sending informational city role message to ' + bot.users[userID].username );
-		typeMessage(channelID, "<@!" + userID + ">, just FYI we serve Northeast Macomb (Armada, Memphis, Richmond, New Haven, & New Baltimore). You are certainly welcome to join even if you only play in these areas occasionally!" );
+	if (!city && /detroit|macomb|clemens|claire *shore|algonac|michigan|sterling *heights|shelby|marine *city|utica/i.test(message)) {
+		logger.info(`Sending informational city role message to ${member.user.username}`);
+		channel.send(`<@!${member.user.id}>, just FYI we serve Northeast Macomb (Armada, Memphis, Richmond, New Haven, & New Baltimore). You are certainly welcome to join even if you only play in these areas occasionally!`);
 		city = true;
 	}
 		
 	return city;
 }
 
-function sendRules(channelID, memberTag) {
-	if (memberTag === undefined) {
-		//TODO: create error
-	} else {
+function sendRules(channel, member) {
+
+	if (member) {
 		//send rules and !gotcha instructions
-		logger.info('Sending rules to ' + memberTag );
-		bot.sendMessage({
-			to: channelID,
-			message: "OK, " + memberTag + ", you are almost ready to go! Just look over these rules:\n\n"
-				+ "**COMMUNITY RULES**\n"
-				+ "- Please treat your fellow Trainers with dignity and respect. Rudeness and mean-spirited comments will not be tolerated here. Our community is all about having fun and helping each other out. This is extremely important since we are involved with planning real-world meetups. We want everyone to feel comfortable and safe both online and out in the field.\n\n"
-				+ "- As we are a group revolving around an all-ages video game, coarse language and inappropriate topics are not allowed here. Whether or not a topic is appropriate is up to individual admin discretion.\n\n"
-				+ "- Do not take any frustrations out on fellow Trainers in the community. We understand that Raids can often not go as planned, whether it's due to technical difficulty with Pokémon GO, other Trainers not being available for a Raid, or just bad luck. There will always be more Raids, and thus more chances to catch what you're hunting for.\n\n"
-				+ "- No discussion of or links to programs or services that violate Pokémon GO's terms of service. We aim to play the game the way it was intended, and thus will not be employing any scanner bots or tolerate discussion of cheating methods here (such as \"spoofing\"). You are allowed to report Raids found through scanners or bots, but do not link to said scanner or bot software.\n\n"
-				+ "Enter the command **!gotcha** to signify that you've read these rules and are ready to participate in our community!"
-		});
+		logger.info(`Sending rules to ${member.user.username}`);
+		channel.send(`OK, <@!${member.user.id}>, you are almost ready to go! Just look over these rules:
+		
+**COMMUNITY RULES**
+- Please treat your fellow Trainers with dignity and respect. Rudeness and mean-spirited comments will not be tolerated here. Our community is all about having fun and helping each other out. This is extremely important since we are involved with planning real-world meetups. We want everyone to feel comfortable and safe both online and out in the field.
+				
+- As we are a group revolving around an all-ages video game, coarse language and inappropriate topics are not allowed here. Whether or not a topic is appropriate is up to individual admin discretion.
+				
+- Do not take any frustrations out on fellow Trainers in the community. We understand that Raids can often not go as planned, whether it's due to technical difficulty with Pokémon GO, other Trainers not being available for a Raid, or just bad luck. There will always be more Raids, and thus more chances to catch what you're hunting for.
+				
+- No discussion of or links to programs or services that violate Pokémon GO's terms of service. We aim to play the game the way it was intended, and thus will not be employing any scanner bots or tolerate discussion of cheating methods here (such as "spoofing"). You are allowed to report Raids found through scanners or bots, but do not link to said scanner or bot software.
+				
+Enter the command **!gotcha** to signify that you've read these rules and are ready to participate in our community!`
+		);
 	}
 }
 
-function deleteUserMentions(channelID, userID) {
-	const messageIDs = [];
-
-	bot.getMessages({
-		channelID: channelID,
-		limit: 200
-	}, function(err, messages) {
-		if (err) {
-			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
-		} else {
-			for(let i=0; i < messages.length; i++){
-				for(let j=0; j < messages[i].mentions.length; j++){
-					if (messages[i].mentions[j].id === userID) {
-						logger.info("Deleting message. id:" + messages[i].id);
-						messageIDs.push(messages[i].id);
-					}
+function deleteMemberMentions(channel, member) {
+	logger.info(`Deleting messages that mention user ${member.user.username} in ${channel.name}.`);
+	channel.messages.fetch({limit: 100})
+		.then(messages => {
+			messages.array().forEach( message => {
+				if (message.mentions.has(member)) {
+					message.delete({timeout: 1000})
+						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
 				}
-			}
-			
-			setTimeout(function() {
-				if (messageIDs.length === 1) {
-					bot.deleteMessage({
-						channelID: channelID, 
-						messageID: messageIDs[0]
-					});
-				} else if (messageIDs.length > 1) {
-					deleteMessages(channelID, messageIDs);
-				}
-			}, 1000);
-		}
-	});
-}
-
-function deleteUserMessages(channelID, userID) {
-	const messageIDs = [];
-
-	bot.getMessages({
-		channelID: channelID,
-		limit: 200
-	}, function(err, messages) {
-		if (err) {
-			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
-		} else {
-			for(let i=0; i < messages.length; i++){
-				if (messages[i].author.id === userID) {
-					logger.info("Deleting message. id:" + messages[i].id);
-					messageIDs.push(messages[i].id);
-				}
-			}
-			
-			setTimeout(function() {
-				if (messageIDs.length === 1) {
-					bot.deleteMessage({
-						channelID: channelID, 
-						messageID: messageIDs[0]
-					});
-				} else if (messageIDs.length > 1) {
-					deleteMessages(channelID, messageIDs);
-				}
-			}, 1000);
-		}
-	});
-}
-
-function deleteMessages(channelID, messageIDs) {
-	bot.deleteMessages({
-		channelID: channelID,
-		messageIDs: messageIDs,
-	}, function(err) {
-		if (err) {
-			console.log(err.name + " " + err.statusCode + " " + err.statusMessage);
-			if (err.statusCode === 429) {
-				setTimeout(function() {
-					deleteMessages(channelID, messageIDs);
-				}, err.response.retry_after);
-			}
-		}
-	});
-}
-
-
-function typeMessage(channelID, message) {
-	bot.simulateTyping(channelID);
-	setTimeout(function() {
-		bot.sendMessage({
-			to: channelID,
-			message: message
+			})
 		});
-	}, 2000);
+}
+
+function deleteMemberMessages(channel, member) {
+	logger.info(`Deleting messages that were created by ${member.user.username} in ${channel.name}.`);
+	channel.messages.fetch({limit: 100})
+		.then(messages => {
+			messages.array().forEach(message => {
+				if (message.author.id === member.id) {
+					message.delete({timeout: 1000})
+						.then(msg => logger.debug(`	Deleted message: ${msg.type} | ${msg.content}`));
+				}
+			})
+		});
 }
