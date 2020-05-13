@@ -10,20 +10,22 @@ logger.level = 'debug';
 
 // Initialize Discord Bot
 const bot = new Discord.Client();
-bot.login(process.env.BOT_TOKEN);
+bot.login(process.env.BOT_TOKEN).then(r => logger.info(r));
 
 bot.on('ready', () => {
     logger.info('Connected');
 	logger.info(`Logged in as ${bot.user.tag}!`);
-
+	
 	bot.user.setPresence({
 		status: 'online',
-		game: {name: 'Welcome Bot v1.1'}
-	})
-		.then(presence => {
-			logger.info(`Set Presence: ${presence.status}`);
-		})
-		.catch(console.error);
+		activity: {
+			name: 'Welcome Bot v1.1',
+			type: 0
+		}
+	}).then(presence => {
+		logger.info(`Set bot presence to ${presence.activities[0]}.`);
+		logger.info(`Set bot status to ${presence.status}.`);
+	}).catch(console.error);
 });
 
 bot.on('disconnect', (errMsg, code) => {
@@ -57,7 +59,7 @@ bot.on('message', (message) => {
 	const member = message.guild.members.cache.get(user.id);
 	const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
 	const newUserRole = message.guild.roles.cache.find(role => role.name === "new user");
-	const welcomeChannel = bot.channels.cache.find(channel => channel.name ==="welcome");
+	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
 	const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
 	const chatChannel = bot.channels.cache.find(channel => channel.name === "chat");
 
@@ -87,7 +89,7 @@ bot.on('message', (message) => {
 					sendRules(welcomeChannel, mentionedMember);
 					break;
 				case "gotcha":
-					member.roles.remove(newUserRole);
+					member.roles.remove(newUserRole).then(() => logger.info(`Removed ${member.user.username} from new user role.`));
 					chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome ${member.displayName} to ${message.guild.name}!`)
 					//Delete all messages that mention the user
 					deleteMemberMentions(welcomeChannel, member);
@@ -122,23 +124,25 @@ bot.on('message', (message) => {
 			//Send Rules Prompt to user
 			setTimeout(() => {
 				sendRules(welcomeChannel, member);
-			}, 2000);
+			}, 5000);
 		}
 	}
 	 
 });
 
 function sendWelcome(channel, member) {
-	let memberStr = "";
+	let memberStr;
 	if (member) {
 		logger.info(`Sending welcome message to ${member.user.username}`);
-		memberStr = `, <@!${member.user.id}>`;
+		memberStr = `<@!${member.user.id}>`;
 	} else {
 		logger.info(`Sending general welcome message`);
+		const newUserRole = member.guild.roles.cache.find(role => role.name === "new user");
+		memberStr = `<@&${newUserRole.id}>`;
 	}
 
 	//Create welcome text
-	const welcomeMessage = `Hold it right there! I need to check your trainer information before I can let you through${memberStr}!
+	const welcomeMessage = `Hold it right there! I need to check your trainer information before I can let you through, ${memberStr}!
 
 Please take a screen shot of your player profile in the game and post it here.
 
@@ -161,20 +165,20 @@ function checkTeams(channel, member, message) {
 	if (/mystic/i.test(message)) {
 		logger.info(`Assigning mystic role to ${member.user.username}`);
 		member.roles.add(mysticRole);
-		member.roles.remove(valorRole);
-		member.roles.remove(instinctRole);
+		member.roles.remove(valorRole).then(() => logger.info(`Removed ${member.user.username} from valor.`));
+		member.roles.remove(instinctRole).then(() => logger.info(`Removed ${member.user.username} from instinct.`));
 		channel.send(`<:blanche:346144078292844556>: Wisdom over instinct; calm over valor. Blanche welcomes <@!${member.user.id}> to <:mystic:346141360337977354>`);
 	} else if (/valor/i.test(message)) {
 		logger.info(`Assigning valor role to ${member.user.username}`);
 		member.roles.add(valorRole);
-		member.roles.remove(mysticRole);
-		member.roles.remove(instinctRole);
+		member.roles.remove(mysticRole).then(() => logger.info(`Removed ${member.user.username} from mystic.`));
+		member.roles.remove(instinctRole).then(() => logger.info(`Removed ${member.user.username} from instinct.`));
 		channel.send(`<:candela:346144078989361152>: In darkest night we are the flame! Candela welcomes <@!${member.user.id}> to <:valor:346141360031793154>`);
 	} else if (/instinct/i.test(message)) {
 		logger.info(`Assigning instinct role to ${member.user.username}`);
 		member.roles.add(instinctRole);
-		member.roles.remove(mysticRole);
-		member.roles.remove(valorRole);
+		member.roles.remove(mysticRole).then(() => logger.info(`Removed ${member.user.username} from mystic.`));
+		member.roles.remove(valorRole).then(() => logger.info(`Removed ${member.user.username} from valor.`));
 		channel.send(`<:spark:346144078905212928>: There is no shelter from the storm! Spark welcomes <@!${member.user.id}> to <:instinct:346141360132325377>`);
 	} else {
 		team = false;
@@ -291,7 +295,7 @@ function deleteMemberMessages(channel, member) {
 			messages.array().forEach(message => {
 				if (message.author.id === member.id) {
 					message.delete({timeout: 1000})
-						.then(msg => logger.debug(`	Deleted message: ${msg.type} | ${msg.content}`));
+						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`));
 				}
 			})
 		});
