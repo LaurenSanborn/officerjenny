@@ -137,7 +137,7 @@ function sendWelcome(channel, member) {
 		memberStr = `<@!${member.user.id}>`;
 	} else {
 		logger.info(`Sending general welcome message`);
-		const newUserRole = member.guild.roles.cache.find(role => role.name === "new user");
+		const newUserRole = channel.guild.roles.cache.find(role => role.name === "new user");
 		memberStr = `<@&${newUserRole.id}>`;
 	}
 
