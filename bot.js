@@ -299,8 +299,7 @@ function deleteMemberMentions(channel, member) {
 	channel.messages.fetch({limit: 100})
 		.then(messages => {
 			messages.array().forEach( message => {
-				if (message.mentions.has(member)) {
-					logger.info(`Mentions: ${message.mentions}`);
+				if (message.mentions.has(member, {ignoreRoles: true, ignoreEveryone: true})) {
 					message.delete({timeout: 1000})
 						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
 						.catch(err => console.error(err));
