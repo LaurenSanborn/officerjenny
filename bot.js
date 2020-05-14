@@ -59,6 +59,8 @@ bot.on('message', (message) => {
 	const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
 	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
 	const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
+	const isNewUser = member.roles.cache.some(role => role.name === 'new user');
+	const isAdmin = member.hasPermission("ADMINISTRATOR");
 
 	if (!user.bot && message.channel.id === welcomeChannel.id) {
 		logger.info(`New Message. user: ${user.username}, message: ${message.content}`);
@@ -77,33 +79,34 @@ bot.on('message', (message) => {
 			logger.info(`Command detected. args: ${args}`);
 			switch(cmd) {
 				case 'welcome':
-					if (member.hasPermission("ADMINISTRATOR")) {
+					if (isAdmin) {
 						//Send Welcome Prompt to the user mentioned
 						sendWelcome(welcomeChannel, mentionedMember);
 						message.delete();
 					}
 					break;
 				case "rules":
-					if (member.hasPermission("ADMINISTRATOR")) {
+					if (isAdmin) {
 						//Send Rules Prompt to the user mentioned
 						sendRules(welcomeChannel, mentionedMember);
 						message.delete();
 					}
 					break;
 				case "clearchannel":
-					if (member.hasPermission("ADMINISTRATOR")) {
+					if (isAdmin) {
 						//wipe all messages from welcome channel, with the exception of any pinned messages
 						clearUnpinnedMessages(welcomeChannel);
 					}
 					break;
 				case "gotcha":
-					//remove role, send notifications, and clean up channel
-					promoteMember(message);
+					if (isNewUser) {
+						//remove new user role, send notifications, and clean up welcome channel
+						promoteMember(message);
+					}
 					break;
 			}
-
-		//Check for screen shot (assumes an attachment is the screen shot)
-		} else if (message.attachments.array().length === 1) {
+		} else if (isNewUser && message.attachments.array().length === 1 ) {
+			//Check for screen shot (assumes an attachment is the screen shot)
 			setTimeout(() => {
 				welcomeChannel.send(`Oh, is that the screen shot I asked for?  If so, an <@&${adminRole.id}> will come by sometime soon to review it. Thanks, <@!${user.id}>!`);
 			}, 2000);
@@ -114,21 +117,18 @@ bot.on('message', (message) => {
 			//Forward message to admin channel
 			let attachments = message.attachments.array();
 			adminChannel.send(`Verification needed for user ${user.username}. ${attachments[0].proxyURL}`);
-		//Look for team keywords
-		} else if (checkTeams(welcomeChannel, member, message)) {
+		} else if (isNewUser && checkTeams(welcomeChannel, member, message)) {	//Look for team keywords
 			setTimeout(() => {
 				//Send Areas prompt to user
 				welcomeChannel.send(`Next, <@!${user.id}>, tell me: where do you play (**Armada**, **Memphis**, **Richmond**, **New Haven**, **New Baltimore**, **Chesterfield**)?`);
-			}, 2000);
-		//Look for area keywords
-		} else if (checkAreas(welcomeChannel, member, message)) {
+				}, 2000);
+		} else if (isNewUser && checkAreas(welcomeChannel, member, message)) {	//Look for area keywords
 			//Send Rules Prompt to user
 			setTimeout(() => {
 				sendRules(welcomeChannel, member);
-			}, 5000);
+			}, 10000);
 		}
 	}
-	 
 });
 
 function sendWelcome(channel, member) {
