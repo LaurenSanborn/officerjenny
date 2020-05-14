@@ -295,11 +295,12 @@ function promoteMember(message) {
 
 
 function deleteMemberMentions(channel, member) {
-	logger.info(`Flagging messages that mention user ${member.user.username} in ${channel.name} for deletion.`);
+	logger.info(`Flagging messages that mention user ${member.user.username} (${member.id}) in ${channel.name} for deletion.`);
 	channel.messages.fetch({limit: 100})
 		.then(messages => {
 			messages.array().forEach( message => {
 				if (message.mentions.has(member)) {
+					logger.info(`Mentions: ${message.mentions}`);
 					message.delete({timeout: 1000})
 						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
 						.catch(err => console.error(err));
