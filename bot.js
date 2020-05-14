@@ -10,11 +10,10 @@ logger.level = 'debug';
 
 // Initialize Discord Bot
 const bot = new Discord.Client();
-bot.login(process.env.BOT_TOKEN).then(r => logger.info(r));
+bot.login(process.env.BOT_TOKEN).then(()=> logger.info("Logged in."));
 
 bot.on('ready', () => {
-    logger.info('Connected');
-	logger.info(`Logged in as ${bot.user.tag}!`);
+    logger.info(`Connected as ${bot.user.tag}!`);
 	
 	bot.user.setPresence({
 		status: 'online',
@@ -58,10 +57,8 @@ bot.on('message', (message) => {
 	const user = message.author;
 	const member = message.guild.members.cache.get(user.id);
 	const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
-	const newUserRole = message.guild.roles.cache.find(role => role.name === "new user");
 	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
 	const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
-	const chatChannel = bot.channels.cache.find(channel => channel.name === "chat");
 
 	if (!user.bot && message.channel.id === welcomeChannel.id) {
 		logger.info(`New Message. user: ${user.username}, message: ${message.content}`);
@@ -79,27 +76,30 @@ bot.on('message', (message) => {
 			logger.info(`Command detected. args: ${args}`);
 			switch(cmd) {
 				case 'welcome':
-					//TODO: Verify admin privileges
-					//Send Welcome Prompt to the user mentioned
-					sendWelcome(welcomeChannel, mentionedMember);
+					if (member.hasPermission("ADMINISTRATOR")) {
+						//Send Welcome Prompt to the user mentioned
+						sendWelcome(welcomeChannel, mentionedMember);
+						message.delete();
+					}
 					break;
 				case "rules":
-					//TODO: Verify admin privileges
-					//Send Rules Prompt to the user mentioned
-					sendRules(welcomeChannel, mentionedMember);
+					if (member.hasPermission("ADMINISTRATOR")) {
+						//Send Rules Prompt to the user mentioned
+						sendRules(welcomeChannel, mentionedMember);
+						message.delete();
+					}
+					break;
+				case "clearchannel":
+					if (member.hasPermission("ADMINISTRATOR")) {
+						//wipe all messages from welcome channel, with the exception of any pinned messages
+						clearUnpinnedMessages(welcomeChannel);
+					}
 					break;
 				case "gotcha":
-					member.roles.remove(newUserRole).then(() => logger.info(`Removed ${member.user.username} from new user role.`));
-					chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome ${member.displayName} to ${message.guild.name}!`)
-					//Delete all messages that mention the user
-					deleteMemberMentions(welcomeChannel, member);
-					//Delete all messages that the user has posted
-					deleteMemberMessages(welcomeChannel, member);
+					//remove role, send notifications, and clean up channel
+					promoteMember(message);
 					break;
 			}
-
-			//Delete command
-			message.delete();
 
 		//Check for screen shot (assumes an attachment is the screen shot)
 		} else if (message.attachments.array().length === 1) {
@@ -275,28 +275,66 @@ Enter the command **!gotcha** to signify that you've read these rules and are re
 	}
 }
 
+function promoteMember(message) {
+	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
+	const chatChannel = bot.channels.cache.find(channel => channel.name === "chat");
+	const member = message.guild.members.cache.get(message.author.id);
+	const newUserRole = message.guild.roles.cache.find(role => role.name === "new user");
+
+	member.roles.remove(newUserRole).then(() => logger.info(`Removed ${member.user.username} from new user role.`));
+
+	chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome ${member.displayName} to ${message.guild.name}!`)
+
+	//Delete all messages that mention the user
+	deleteMemberMentions(welcomeChannel, member);
+
+	//Delete all messages that the user has posted
+	deleteMemberMessages(welcomeChannel, member);
+}
+
+
 function deleteMemberMentions(channel, member) {
-	logger.info(`Deleting messages that mention user ${member.user.username} in ${channel.name}.`);
+	logger.info(`Flagging messages that mention user ${member.user.username} in ${channel.name} for deletion.`);
 	channel.messages.fetch({limit: 100})
 		.then(messages => {
 			messages.array().forEach( message => {
 				if (message.mentions.has(member)) {
 					message.delete({timeout: 1000})
 						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
+						.catch(err => console.error(err));
 				}
 			})
-		});
+		})
+		.catch(err => console.error(err));
 }
 
 function deleteMemberMessages(channel, member) {
-	logger.info(`Deleting messages that were created by ${member.user.username} in ${channel.name}.`);
+	logger.info(`Flagging messages created by ${member.user.username} in ${channel.name} for deletion.`);
 	channel.messages.fetch({limit: 100})
 		.then(messages => {
 			messages.array().forEach(message => {
 				if (message.author.id === member.id) {
 					message.delete({timeout: 1000})
-						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`));
+						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
+						.catch(err => console.error(err));
 				}
 			})
-		});
+		})
+		.catch(err => console.error(err));
+}
+
+function clearUnpinnedMessages(channel) {
+	logger.info(`Flagging all unpinned messages in ${channel.name} for deletion.`);
+	channel.messages.fetch({limit: 100})
+		.then(messages => {
+			messages.array().forEach(message => {
+				console.log(message.content);
+				if (!message.pinned) {
+					message.delete({timeout: 1000})
+						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
+						.catch(err => console.error(err));
+				}
+			})
+		})
+		.catch(err => console.error(err));
 }
