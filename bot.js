@@ -70,6 +70,7 @@ bot.on('message', (message) => {
 			const cmd = args[0];
 			let mentionedMember = null;
 			if(message.mentions.users.first()) {
+				logger.info(`Mentioned users: ${message.mentions.users}`);
 				mentionedMember = message.guild.members.cache.get(message.mentions.users.first().id);
 			}
 
