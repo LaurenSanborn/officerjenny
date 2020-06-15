@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const Tesseract = require('tesseract.js')
 const logger = require('winston');
 
 // Configure logger settings
@@ -59,8 +60,6 @@ bot.on('message', (message) => {
 
 	if (!user.bot && message.channel.id === welcomeChannel.id) {
 		const member = message.guild.members.cache.get(user.id);
-		const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
-		const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
 		const isNewUser = member.roles.cache.some(role => role.name === 'new user');
 		const isAdmin = member.hasPermission("ADMINISTRATOR");
 
@@ -108,18 +107,11 @@ bot.on('message', (message) => {
 			}
 		} else if (isNewUser && message.attachments.array().length === 1 ) {
 			//Check for screen shot (assumes an attachment is the screen shot)
-			setTimeout(() => {
-				welcomeChannel.send(`Oh, is that the screen shot I asked for?  If so, an <@&${adminRole.id}> will come by sometime soon to review it. Thanks, <@!${user.id}>!`);
-			}, 2000);
+			processScreenshot(message);
 			//Send Team prompt to user
 			setTimeout(() => {
 				welcomeChannel.send(`While we wait, <@!${user.id}>, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?`);
 			}, 2000);
-			//Forward message to admin channel
-			let attachments = message.attachments.array();
-			adminChannel.send(`Verification needed for user ${user.username}. ${attachments[0].proxyURL}`)
-				.then(logger.info(`Sent verification message in ${adminChannel.name}.`))
-				.catch(err => console.error(err));
 		} else if (isNewUser && checkTeams(welcomeChannel, member, message)) {	//Look for team keywords
 			setTimeout(() => {
 				//Send Areas prompt to user
@@ -157,6 +149,55 @@ Here's an example:`;
 
 	//display initial welcome message
 	channel.send(welcomeMessage, attachment);
+}
+
+function processScreenshot(message) {
+	const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
+	const user = message.author;
+	const attachments = message.attachments.array();
+
+	Tesseract.recognize(
+		attachments[0].proxyURL,
+		'eng',
+		{ logger: m => console.log(m) }
+	).then(({ data: { text } }) => {
+		logger.info(`Extracted text: ${text}`);
+
+		if (/FRIENDS/.test(text)) {
+			let textArr = text.split("FRIENDS");
+			let name = textArr[1].match(/^[A-Z0-9]{4,15}/im)[0];
+			logger.info(`Name: ${name}`);
+
+			adminChannel.send(`Verification needed for user ${user.username}. ${attachments[0].proxyURL}`)
+				.then(logger.info(`Sent verification message in ${adminChannel.name}.`))
+				.catch(err => console.error(err));
+
+			if (name !== user.username) {
+				adminChannel.send(`Rename ${user.username} to ${name}?`)
+					.then( (m) => {
+						logger.info(`Sent rename message in ${adminChannel.name}.`);
+						m.react('☑️').then(() => m.react('🇽'));
+
+						const filter = (reaction, user) => {
+							return ['☑️', '🇽'].includes(reaction.emoji.name) && !user.bot;
+						};
+
+						m.awaitReactions(filter, { max: 1 })
+							.then(collected => {
+								const reaction = collected.first();
+
+								if (reaction.emoji.name === '☑️') {
+									message.member.setNickname(name)
+										.then(adminChannel.send(`Renamed to ${name}`));
+								} else {
+									adminChannel.send(`Ok. You can set the nickname yourself with the command !setnick [user] [new nickname]`);
+								}
+							});
+					})
+					.catch(err => console.error(err));
+			}
+		}
+	})
 }
 
 function checkTeams(channel, member, message) {
