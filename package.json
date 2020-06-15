@@ -6,6 +6,7 @@
   "author": "Lauren Sanborn",
   "dependencies": {
     "discord.js": "^12.1.1",
+    "tesseract.js": "^2.1.1",
     "winston": "^3.2.1"
   }
 }

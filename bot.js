@@ -55,14 +55,15 @@ bot.on('guildMemberRemove', (member) => {
 
 bot.on('message', (message) => {
 	const user = message.author;
-	const member = message.guild.members.cache.get(user.id);
-	const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
 	const welcomeChannel = bot.channels.cache.find(channel => channel.name === "welcome");
-	const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
-	const isNewUser = member.roles.cache.some(role => role.name === 'new user');
-	const isAdmin = member.hasPermission("ADMINISTRATOR");
 
 	if (!user.bot && message.channel.id === welcomeChannel.id) {
+		const member = message.guild.members.cache.get(user.id);
+		const adminRole = message.guild.roles.cache.find(role => role.name === "admin");
+		const adminChannel = bot.channels.cache.find(channel => channel.name === "admin");
+		const isNewUser = member.roles.cache.some(role => role.name === 'new user');
+		const isAdmin = member.hasPermission("ADMINISTRATOR");
+
 		logger.info(`New Message. user: ${user.username}, message: ${message.content}`);
 		
 		// Our bot first needs to know if it is being asked to execute a command
@@ -116,7 +117,9 @@ bot.on('message', (message) => {
 			}, 2000);
 			//Forward message to admin channel
 			let attachments = message.attachments.array();
-			adminChannel.send(`Verification needed for user ${user.username}. ${attachments[0].proxyURL}`);
+			adminChannel.send(`Verification needed for user ${user.username}. ${attachments[0].proxyURL}`)
+				.then(logger.info(`Sent verification message in ${adminChannel.name}.`))
+				.catch(err => console.error(err));
 		} else if (isNewUser && checkTeams(welcomeChannel, member, message)) {	//Look for team keywords
 			setTimeout(() => {
 				//Send Areas prompt to user
@@ -282,9 +285,13 @@ function promoteMember(message) {
 	const member = message.guild.members.cache.get(message.author.id);
 	const newUserRole = message.guild.roles.cache.find(role => role.name === "new user");
 
-	member.roles.remove(newUserRole).then(() => logger.info(`Removed ${member.user.username} from new user role.`));
+	member.roles.remove(newUserRole)
+		.then(() => logger.info(`Removed ${member.user.username} from new user role.`))
+		.catch(err => console.error(err));
 
-	chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome ${member.displayName} to ${message.guild.name}!`)
+	chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome <@!${member.user.id}> to ${message.guild.name}!`)
+		.then(logger.info(`Sent everyone welcome ${member.displayName} message in ${chatChannel.name}.`))
+		.catch(err => console.error(err));
 
 	//Delete all messages that mention the user
 	deleteMemberMentions(welcomeChannel, member);
