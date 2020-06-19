@@ -330,7 +330,7 @@ function promoteMember(message) {
 		.then(() => logger.info(`Removed ${member.user.username} from new user role.`))
 		.catch(err => console.error(err));
 
-	chatChannel.send(`<:willow:346144079198945280>: Everyone, welcome <@!${member.user.id}> to ${message.guild.name}!`)
+	chatChannel.send(`Everyone, please welcome <@!${member.user.id}> to ${message.guild.name}!`)
 		.then(logger.info(`Sent everyone welcome ${member.displayName} message in ${chatChannel.name}.`))
 		.catch(err => console.error(err));
 
@@ -377,7 +377,6 @@ function clearUnpinnedMessages(channel) {
 	channel.messages.fetch({limit: 100})
 		.then(messages => {
 			messages.array().forEach(message => {
-				console.log(message.content);
 				if (!message.pinned) {
 					message.delete({timeout: 1000})
 						.then(msg => logger.debug(`Deleted message: ${msg.type} | ${msg.content}`))
