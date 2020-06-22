@@ -110,7 +110,7 @@ bot.on('message', (message) => {
 			processScreenshot(message);
 			//Send Team prompt to user
 			setTimeout(() => {
-				welcomeChannel.send(`While we wait, <@!${user.id}>, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?`);
+				welcomeChannel.send(`<@!${user.id}>, could you tell me about yourself?  What team are you on (**Instinct**, **Mystic**, **Valor**)?`);
 			}, 2000);
 		} else if (isNewUser && checkTeams(welcomeChannel, member, message)) {	//Look for team keywords
 			setTimeout(() => {
